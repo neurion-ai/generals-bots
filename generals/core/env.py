@@ -53,6 +53,22 @@ class TimeStep(NamedTuple):
 # every eval (quick-check + league) generates identical maps. mode is
 # authoritative — it overrides the matching GeneralsEnv constructor arguments.
 _MODE_PRESETS = {
+    # Explicit standard profile used by generals.io and by forward research.
+    # ``None`` remains backwards-compatible, but new callers should select this
+    # name so a run cannot accidentally drift into a competition preset.
+    "generals-io": dict(
+        grid_dims=None,
+        min_grid_size=17,
+        max_grid_size=23,
+        pad_to=24,
+        truncation=2048,
+        perfect_info=False,
+        mountain_density_range=(0.21, 0.21),
+        num_cities_range=(9, 11),
+        min_generals_distance=4,
+        max_generals_distance=8,
+        castle_val_range=(40, 51),
+    ),
     "competition-r1": dict(
         grid_dims=(15, 15),
         truncation=600,
@@ -120,6 +136,10 @@ class GeneralsEnv:
             num_cities_range = preset["num_cities_range"]
             min_generals_distance = preset["min_generals_distance"]
             castle_val_range = preset["castle_val_range"]
+            if grid_dims is None:
+                min_grid_size = preset["min_grid_size"]
+                max_grid_size = preset["max_grid_size"]
+                pad_to = preset["pad_to"]
 
         # Handle backward compat: grid_dims=(h,w) → fixed size
         if grid_dims is not None:

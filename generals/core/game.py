@@ -340,15 +340,43 @@ def step(state: GameState, actions: jnp.ndarray) -> tuple[GameState, GameInfo]:
 
 
 def _transfer_loser_cells_to_winner(state: GameState) -> GameState:
-    """Transfer loser's cells to winner."""
+    """Transfer the defeated player's territory using generals.io semantics.
+
+    Capturing a general ends the game immediately.  The official game then
+    awards every defeated cell to the winner while halving each defeated stack
+    (rounding up).  The captured general is converted into a city; retaining it
+    in ``generals`` would make terminal observations and replay state diverge
+    even though the winner is already known.
+    """
     winner_idx = state.winner
     loser_idx = 1 - winner_idx
+
+    loser_cells = state.ownership[loser_idx]
+    # ``(n + 1) // 2`` is integer ceil-half and is safe for the non-negative
+    # army counts used by the simulator.  Do not touch the winner's stacks.
+    halved_loser_armies = (state.armies + 1) // 2
+    armies = jnp.where(loser_cells, halved_loser_armies, state.armies)
 
     new_ownership = state.ownership.at[winner_idx].set(state.ownership[winner_idx] | state.ownership[loser_idx])
     new_ownership = new_ownership.at[loser_idx].set(jnp.zeros_like(state.ownership[loser_idx], dtype=bool))
     new_ownership_neutral = state.ownership_neutral & ~state.ownership[loser_idx]
 
-    return state._replace(ownership=new_ownership, ownership_neutral=new_ownership_neutral)
+    # The capture move has already changed the target cell's ownership to the
+    # winner, so locate the defeated general from the immutable position table
+    # rather than from ``loser_cells``.
+    captured_general = jnp.zeros_like(state.generals).at[
+        tuple(state.general_positions[loser_idx])
+    ].set(True)
+    generals = state.generals & ~captured_general
+    cities = state.cities | captured_general
+
+    return state._replace(
+        armies=armies,
+        ownership=new_ownership,
+        ownership_neutral=new_ownership_neutral,
+        generals=generals,
+        cities=cities,
+    )
 
 
 @jax.jit
