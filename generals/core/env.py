@@ -184,7 +184,8 @@ class GeneralsEnv:
             max_generals_distance=self.max_generals_distance,
             castle_val_range=self.castle_val_range,
         )
-        return create_initial_state(grid.astype(jnp.int32))
+        extent = jnp.zeros_like(grid, dtype=jnp.bool_).at[:h, :w].set(True)
+        return create_initial_state(grid.astype(jnp.int32), extent=extent)
 
     def reset(self, key: jnp.ndarray) -> tuple[GameState, GameState]:
         """
