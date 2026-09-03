@@ -3,6 +3,7 @@ import jax
 import jax.numpy as jnp
 import pytest
 
+from generals import GeneralsEnv
 from generals.core import game
 
 
@@ -37,6 +38,15 @@ def test_create_initial_state():
     # Check initial game state
     assert state.time == 0
     assert state.winner == -1
+
+
+def test_generals_io_profile_is_explicit_public_variable_canvas():
+    env = GeneralsEnv(mode="generals-io", pool_size=4)
+
+    assert env.mode == "generals-io"
+    assert (env.min_grid_size, env.max_grid_size, env.pad_to) == (17, 23, 24)
+    assert env.truncation == 2048
+    assert env.perfect_info is False
 
 
 def test_step_pass_action():
@@ -145,6 +155,42 @@ def test_global_update():
 
     # General should have gained 1 army
     assert state.armies[0, 0] == 6
+
+
+def test_captured_general_converts_to_city_and_halves_defeated_armies():
+    """Terminal capture follows the public generals.io transfer contract."""
+    grid = jnp.zeros((3, 3), dtype=jnp.int32)
+    grid = grid.at[1, 0].set(1)
+    grid = grid.at[1, 1].set(2)
+    state = game.create_initial_state(grid)._replace(
+        armies=jnp.array(
+            [[0, 0, 0], [9, 3, 0], [0, 7, 0]], dtype=jnp.int32
+        ),
+        ownership=jnp.array(
+            [
+                [[False, False, False], [True, False, False], [False, False, False]],
+                [[False, False, False], [False, True, False], [False, True, False]],
+            ]
+        ),
+        ownership_neutral=jnp.array(
+            [[False, True, True], [True, False, True], [True, False, True]]
+        ),
+    )
+    actions = jnp.array(
+        [[0, 1, 0, 3, 0], [1, 0, 0, 0, 0]], dtype=jnp.int32
+    )
+
+    new_state, info = game.step(state, actions)
+
+    assert int(info.winner) == 0
+    assert bool(new_state.cities[1, 1])
+    assert not bool(new_state.generals[1, 1])
+    assert bool(new_state.ownership[0, 1, 1])
+    assert not bool(new_state.ownership[1, 1, 1])
+    # The defeated owned stack of 7 becomes ceil-half 4.  The attacking
+    # winner stack is not halved.
+    assert int(new_state.armies[2, 1]) == 4
+    assert int(new_state.armies[1, 1]) == 5
 
 
 def test_batch_step():
