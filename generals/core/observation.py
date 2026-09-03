@@ -32,6 +32,8 @@ class Observation(NamedTuple):
         opponent_land_count: Scalar, opponent's total cell count.
         opponent_army_count: Scalar, opponent's total army count.
         timestep: Scalar, current game step (0-indexed).
+        extent: Boolean public mask for the rectangular board before batching
+            padding.  This is map geometry, not hidden simulator state.
     """
 
     armies: jnp.ndarray
@@ -48,6 +50,7 @@ class Observation(NamedTuple):
     opponent_land_count: jnp.ndarray
     opponent_army_count: jnp.ndarray
     timestep: jnp.ndarray
+    extent: jnp.ndarray | None = None
 
     def as_tensor(self) -> jnp.ndarray:
         """

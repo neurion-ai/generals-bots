@@ -47,6 +47,7 @@ class GameState(NamedTuple):
         time: Scalar, current game timestep.
         winner: Scalar, -1 if game ongoing, 0 or 1 if that player won.
         pool_idx: Scalar, index into the pre-generated state pool for auto-reset.
+        extent: Public rectangular board extent before optional batching padding.
     """
 
     armies: jnp.ndarray
@@ -60,6 +61,7 @@ class GameState(NamedTuple):
     time: jnp.ndarray
     winner: jnp.ndarray
     pool_idx: jnp.ndarray
+    extent: jnp.ndarray | None = None
 
 
 class GameInfo(NamedTuple):
@@ -85,7 +87,9 @@ class GameInfo(NamedTuple):
 DIRECTIONS = jnp.array([[-1, 0], [1, 0], [0, -1], [0, 1]], dtype=jnp.int32)
 
 
-def create_initial_state(grid: jnp.ndarray) -> GameState:
+def create_initial_state(
+    grid: jnp.ndarray, *, extent: jnp.ndarray | None = None
+) -> GameState:
     """
     Create initial game state from a numeric grid.
 
@@ -120,6 +124,12 @@ def create_initial_state(grid: jnp.ndarray) -> GameState:
     general_pos_1 = jnp.argwhere(is_general_1, size=1, fill_value=-1)[0]
     general_positions = jnp.stack([general_pos_0, general_pos_1])
 
+    if extent is None:
+        extent = jnp.ones_like(grid, dtype=jnp.bool_)
+    extent = jnp.asarray(extent, dtype=jnp.bool_)
+    if extent.shape != grid.shape:
+        raise ValueError("public board extent must match the padded grid shape")
+
     return GameState(
         armies=armies,
         ownership=ownership,
@@ -132,6 +142,7 @@ def create_initial_state(grid: jnp.ndarray) -> GameState:
         time=jnp.int32(0),
         winner=jnp.int32(-1),
         pool_idx=jnp.int32(0),
+        extent=extent,
     )
 
 
@@ -418,6 +429,7 @@ def get_observation(state: GameState, player_idx: int) -> Observation:
         opponent_land_count=info.land[opponent_idx],
         opponent_army_count=info.army[opponent_idx],
         timestep=state.time,
+        extent=state.extent,
     )
 
 
@@ -448,6 +460,7 @@ def get_full_observation(state: GameState, player_idx: int) -> Observation:
         opponent_land_count=info.land[opponent_idx],
         opponent_army_count=info.army[opponent_idx],
         timestep=state.time,
+        extent=state.extent,
     )
 
 

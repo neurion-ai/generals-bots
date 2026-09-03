@@ -49,6 +49,17 @@ def test_generals_io_profile_is_explicit_public_variable_canvas():
     assert env.perfect_info is False
 
 
+def test_generals_io_observation_exposes_public_unpadded_extent():
+    env = GeneralsEnv(mode="generals-io", pool_size=49)
+    pool, _ = env.reset(jax.random.PRNGKey(23))
+    observation = jax.vmap(lambda state: game.get_observation(state, 0))(pool)
+
+    assert observation.extent is not None
+    assert observation.extent.shape == (49, 24, 24)
+    expected = sorted(h * w for h in range(17, 24) for w in range(17, 24))
+    assert sorted(jnp.sum(observation.extent, axis=(1, 2)).tolist()) == expected
+
+
 def test_step_pass_action():
     """Test that pass actions don't change state."""
     grid = create_test_grid(2)
