@@ -135,6 +135,7 @@ class GeneralsEnv:
             mountain_density_range = preset["mountain_density_range"]
             num_cities_range = preset["num_cities_range"]
             min_generals_distance = preset["min_generals_distance"]
+            max_generals_distance = preset["max_generals_distance"]
             castle_val_range = preset["castle_val_range"]
             if grid_dims is None:
                 min_grid_size = preset["min_grid_size"]
